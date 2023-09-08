@@ -4,10 +4,10 @@
       :data="menus"
       v-loading="loading"
       :props="defaultProps"
-      accordion
       :expand-on-click-node="false"
       show-checkbox
       draggable
+      @node-drop="handleDrop"
       :allow-drop="allowDrop"
       node-key="catId"
       :default-expanded-keys="expanded">
@@ -78,10 +78,10 @@
         rules: { name: [{ required: true, message: '请输入分类名称', trigger: 'blur' }] },
         menus: [],
         expanded: [],
+        categoryDragChanges: [],
         dialogFormVisible: false,
         dialogType: '', //edit append
         dialogTitle: '',
-        maxLevel: 0,
         loading: true,
         defaultProps: {
           children: 'children',
@@ -216,29 +216,98 @@
           });
       },
       allowDrop(draggingNode, dropNode, type) {
-        //1.判断被拖动的节点我以及所在的父节点总册数不能大于3
-        //1)计算被拖动节点的总层数
-        this.countNodeLevel(draggingNode.data);
-        let deep = this.maxLevel - draggingNode.data.level + 1;
-        console.log(this.maxLevel);
-        return false;
+        //判断被拖动的节点我以及所在的父节点总层数不能大于3
+        let depth = this.countNodeDepth(draggingNode.data);
+        if (type == 'inner') {
+          return depth + dropNode.data.catLevel <= 3;
+        } else {
+          if (dropNode.data.catLevel == 1) {
+            return depth + 0 <= 3;
+          } else {
+            return depth + dropNode.parent.data.catLevel <= 3;
+          }
+        }
       },
-      countNodeLevel(node) {
-        //DFS
-        if (node.children != null && node.children.lenght > 0) {
-          for (let i = 0; i < node.children.lenght; i++) {
-            if (node.children[i].catLevel > maxLevel) {
-              this.maxLevel = node.children[i].level;
+      countNodeDepth(node) {
+        // 如果节点为 null，返回深度 0
+        if (node === null) {
+          return 0;
+        }
+        // 初始化深度为 1，因为当前节点存在
+        let depth = 1;
+        // 如果有子节点，则递归计算每个子节点的深度
+        if (node.children && node.children.length > 0) {
+          let maxChildDepth = 0;
+          for (let child of node.children) {
+            let childDepth = this.countNodeDepth(child);
+            if (childDepth > maxChildDepth) {
+              maxChildDepth = childDepth;
             }
-            this.countNodeLevel(children);
+          }
+          // 最大子节点深度加上当前节点深度即为整棵树的深度
+          depth += maxChildDepth;
+        }
+        return depth;
+      },
+      handleDrop(draggingNode, dropNode, dropType, ev) {
+        //拖拽完成后向数据库更新的三个值 parentId catLevel sort
+        let parentCid;
+        let catLevel;
+        //1、parentCId
+        //如果dropType为inner，父节点就是dropNode。
+        //如果dropType为before或after，父节点就是dropNode的父节点
+        //2、catLevel
+        //如果dropType为inner，level就是dropNode的level+1
+        //如果dropType为before或after，level就是dropNode的level
+        //还需要修改子节点的level
+        //3、sort
+        if (dropType == 'inner') {
+          parentCid = dropNode.data.catId;
+          catLevel = dropNode.data.catLevel + 1;
+          this.categoryDragChanges = dropNode.data.children;
+        } else {
+          parentCid = dropNode.parent.data.catId == undefined ? 0 : dropNode.parent.data.catId;
+          catLevel = dropNode.data.catLevel;
+          if (dropNode.data.catLevel == 1) {
+            this.categoryDragChanges = this.menus.filter(
+              (node) => node.catLevel == 1 || node.catId == draggingNode.data.catId
+            );
+          } else {
+            this.categoryDragChanges = dropNode.parent.data.children;
+          }
+        }
+
+        //将要修改的分类加入数组
+        for (let i = 0; i < this.categoryDragChanges.length; i++) {
+          this.categoryDragChanges[i].sort = i;
+          if (this.categoryDragChanges[i].catId == draggingNode.data.catId) {
+            this.categoryDragChanges[i].parentCid = parentCid;
+            if (this.categoryDragChanges[i].catLevel != catLevel) {
+              this.updateNodeLevel(this.categoryDragChanges[i], catLevel);
+            }
+            this.categoryDragChanges[i].catLevel = catLevel;
+          }
+        }
+        console.log(this.categoryDragChanges);
+      },
+      updateNodeLevel(node, rootLevel) {
+        if (!node) {
+          return;
+        }
+        // 设置当前节点的 level
+        node.level = rootLevel;
+        // 递归处理子节点
+        if (node.children.length > 0) {
+          for (let child of node.children) {
+            this.updateNodeLevel(child, rootLevel + 1);
           }
         }
       }
     },
-    created() {
+    created() {},
+    mounted() {
       this.getMenus();
     },
-    mounted() {},
     beforeCreate() {},
     beforeMount() {},
     beforeUpdate() {},
