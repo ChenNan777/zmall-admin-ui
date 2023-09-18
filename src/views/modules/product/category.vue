@@ -236,6 +236,13 @@ export default {
       let checkNoods = this.$refs['categoryTree'].getCheckedNodes();
       let ids = [];
       let names = '';
+      if (checkNoods.length == 0) {
+        this.$message({
+          type: 'error',
+          message: '还未选择'
+        });
+        return;
+      }
       checkNoods.forEach((item) => {
         ids.push(item.catId);
         names += item.name + ' ';
