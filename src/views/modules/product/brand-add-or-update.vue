@@ -31,7 +31,7 @@
         <el-input v-model="dataForm.firstLetter" placeholder="检索首字母"></el-input>
       </el-form-item>
       <el-form-item label="排序" prop="sort">
-        <el-input v-model="dataForm.sort" placeholder="排序"></el-input>
+        <el-input type="number" v-model.number="dataForm.sort" placeholder="排序"></el-input>
       </el-form-item>
     </el-form>
     <span slot="footer" class="dialog-footer">
@@ -53,19 +53,42 @@
           name: '',
           logo: '',
           descript: '',
-          showStatus: '',
+          showStatus: 1,
           firstLetter: '',
-          sort: ''
+          sort: 0
         },
         dataRule: {
           name: [{ required: true, message: '品牌名不能为空', trigger: 'blur' }],
-          logo: [{ required: true, message: '品牌logo地址不能为空', trigger: 'blur' }],
+          logo: [{ required: true, message: '品牌logo不能为空', trigger: 'blur' }],
           descript: [{ required: true, message: '介绍不能为空', trigger: 'blur' }],
-          showStatus: [
-            { required: true, message: '显示状态[0-不显示；1-显示]不能为空', trigger: 'blur' }
+          firstLetter: [
+            {
+              validator: (rule, value, callback) => {
+                if (value == '') {
+                  callback(new Error('检索首字母不能为空'));
+                } else if (!/^[a-zA-Z]$/.test(value)) {
+                  callback(new Error('首字母只能有一个英文字母且在[a-z]或[A-Z]之间'));
+                } else {
+                  callback();
+                }
+              },
+              trigger: 'blur'
+            }
           ],
-          firstLetter: [{ required: true, message: '检索首字母不能为空', trigger: 'blur' }],
-          sort: [{ required: true, message: '排序不能为空', trigger: 'blur' }]
+          sort: [
+            {
+              validator: (rule, value, callback) => {
+                if (value == null) {
+                  callback(new Error('排序字段不能为空'));
+                } else if (!Number.isInteger(value) || value < 0) {
+                  callback(new Error('排序字段只能是正整数'));
+                } else {
+                  callback();
+                }
+              },
+              trigger: 'blur'
+            }
+          ]
         }
       };
     },
