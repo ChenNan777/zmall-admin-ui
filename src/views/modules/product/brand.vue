@@ -169,12 +169,11 @@
       //
       updateStatus(data) {
         console.log('修改状态', data);
-        let { brandId, showStatus } = data;
         // 发送修改请求
         this.$http({
           url: this.$http.adornUrl('/product/brand/update'),
           method: 'post',
-          data: this.$http.adornData({ brandId, showStatus }, false)
+          data: this.$http.adornData(data, false)
         }).then(({ data }) => {
           this.$message({
             message: '状态更新成功',
